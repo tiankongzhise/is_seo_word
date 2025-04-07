@@ -23,5 +23,6 @@ def get_ai_rsp(keyword):
         ],
     )
     rsp = completion.choices[0].message.content
+    print(f'{keyword}:{rsp}')
     return KeywordScore(keyword=keyword,score=Decimal(rsp))
    
