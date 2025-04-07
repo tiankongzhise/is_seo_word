@@ -1,0 +1,14 @@
+[project]
+name = "is-seo-word"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "openai>=1.70.0",
+    "pandas>=2.2.3",
+    "pydantic>=2.11.2",
+    "python-dotenv>=1.1.0",
+    "tkzs-bd-ads-db-tool>=0.2.4",
+    "tqdm>=4.67.1",
+]
