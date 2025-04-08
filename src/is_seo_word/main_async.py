@@ -108,10 +108,10 @@ async def main_async(max_concurrency=20, batch_size=50):
         batch = keywords_list[i:i+batch_size]
         tasks.append(batch_process(batch, responses, fail_keywords, progress_monitor))
 
-    print(f"任务提交完毕,等待所有任务完成")
+        print(f"任务提交完毕,等待所有任务完成")
 
-    # 等待所有任务完成
-    results = await asyncio.gather(*tasks)
+        # 等待所有任务完成
+        results = await asyncio.gather(*tasks)
     
     # 处理结果并插入数据库
     all_results = [item for sublist in results for item in sublist if isinstance(item, KeywordScore)]
