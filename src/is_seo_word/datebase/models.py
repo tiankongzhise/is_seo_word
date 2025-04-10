@@ -39,3 +39,20 @@ class KeywordBuyScore(Base):
     create_at = Column(DateTime, nullable=True,default=func.now(), comment='创建时间')
     update_at = Column(DateTime, nullable=True,onupdate=func.now(), comment='更新时间')
     
+class KeywordSeoScoreWithReason(Base):
+    __tablename__ = 'keyword_seo_score_with_reason'
+    __table_args__ = (
+        UniqueConstraint('keyword', name='unique_keyword'),
+        {
+            'mysql_engine': 'InnoDB',
+            'mysql_charset': 'utf8mb4',
+            'mysql_collate': 'utf8mb4_0900_ai_ci',
+            'schema': 'ads_dim_db'
+        }
+    )
+    key_id = Column(Integer, primary_key=True, autoincrement=True,comment='主键')
+    keyword = Column(String(255), nullable=False, comment='关键词')
+    score = Column(Integer, nullable=False, comment='关键词评分')
+    reason = Column(String(255), nullable=False, comment='关键词评分原因')
+    create_at = Column(DateTime, nullable=True,default=func.now(), comment='创建时间')
+    update_at = Column(DateTime, nullable=True,onupdate=func.now(), comment='更新时间')
