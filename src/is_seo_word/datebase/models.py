@@ -54,5 +54,6 @@ class KeywordSeoScoreWithReason(Base):
     keyword = Column(String(255), nullable=False, comment='关键词')
     score = Column(Integer, nullable=False, comment='关键词评分')
     reason = Column(String(255), nullable=False, comment='关键词评分原因')
+    ai_model = Column(String(255), nullable=False, comment='关键词评分使用的模型')
     create_at = Column(DateTime, nullable=True,default=func.now(), comment='创建时间')
     update_at = Column(DateTime, nullable=True,onupdate=func.now(), comment='更新时间')

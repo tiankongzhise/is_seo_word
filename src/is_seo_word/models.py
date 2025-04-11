@@ -13,6 +13,7 @@ class KeywordScoreWithReason(BaseModel):
     keyword:str = Field(...,description="关键词")
     reason:str = Field(...,description="关键词评分原因")
     score:int = Field(...,description="关键词评分")
+    ai_model:str = Field(...,description="关键词评分使用的模型")
 
 @dataclass
 class FileInfo:

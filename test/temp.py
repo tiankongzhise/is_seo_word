@@ -1,9 +1,5 @@
+from src.is_seo_word.utils import update_rsp_fail_txt_to_score_with_reason
 
-    
 
-    # 输出结果: {"亚马逊培训交流": 0.35,  "亚马逊培训开店班": 0.68,  "亚马逊培训表": 0.18,  "亚马逊培训班": 0.73,  "全球亚马逊培训": 0.42}
 
-if __name__ == '__main__':
-    s = '\n\n```json\n{\n  "亚马逊培训交流": 0.35,\n  "亚马逊培训开店班": 0.68,\n  "亚马逊培训表": 0.18,\n  "亚马逊培训班": 0.73,\n  "全球亚马逊培训": 0.42\n}\n```'
-    x = format_rsp_to_dict(s)
-    print(x)
+update_rsp_fail_txt_to_score_with_reason(ai_model='DOUBAO_PRO')

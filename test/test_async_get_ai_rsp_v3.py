@@ -13,7 +13,8 @@ from src.is_seo_word.utils import (get_keyword,
                                    preserve_order_deduplicate, 
                                    save_rsp_v3_result,
                                    saver_process_func,
-                                   TERMINATION_SENTINEL)
+                                   TERMINATION_SENTINEL,
+                                   update_rsp_fail_txt_to_score_with_reason)
 
 # --- Configuration ---
 SYSTEM_ROLE_CONTENT = r"""你是一个SEM关键词筛选系统,对用户输入的一个或者一组关键词的每关键词进行判别是否是一个seo生造词,判断的维度为是否出现不合理重复,语法不符合人类语言习惯,逻辑混乱等.评分从0-100,越接近100表示越可能是SEO生造词.不是人类用户的搜索习惯,
@@ -31,70 +32,22 @@ SYSTEM_ROLE_CONTENT = r"""你是一个SEM关键词筛选系统,对用户输入�
 KEYWORD_FILE_PATH = Path(__file__).parent.parent.joinpath('data/keyword1.txt')
 LOCAL_RSP_FILE_PATH = Path(__file__).parent.parent.joinpath('data/rsp_local.txt')
 FAIL_RSP_FILE_PATH = Path(__file__).parent.parent.joinpath('data/rsp_fail.txt')
-MODEL_ID_DEEPSEEK_V3 = 'ep-20250407223552-sb9r2'
-MODEL_ID_DEEPSEEK_R1 = 'ep-20250208112736-r5hxt'
-MAX_CONCURRENT_TASKS = 10 # Control total concurrent tasks (like a pool size)
+AI_MODEL_MAP = {
+"MODEL_ID_DEEPSEEK_V3" : 'ep-20250407223552-sb9r2',
+"MODEL_ID_DEEPSEEK_R1" : 'ep-20250208112736-r5hxt',
+"MODEL_ID_DOUBAO_PRO_v" : 'ep-20250411143831-q62g9',
+"MODEL_ID_DOUBAO_PRO" : 'ep-20250411162009-bmn68',
+"MODEL_ID_DOUBAO_PRO_256":'ep-20250411162253-4b2g4'
+}
+MAX_CONCURRENT_TASKS = 20 # Control total concurrent tasks (like a pool size)
 
-MODEL_SELECT = 'R1'
+MODEL_SELECT = 'DOUBAO_PRO_256'
 
-if MODEL_SELECT == 'R1':
-    MODEL_ID = MODEL_ID_DEEPSEEK_R1
-elif MODEL_SELECT == 'R3':
-    MODEL_ID = MODEL_ID_DEEPSEEK_V3
-else:
-    print(f'[ERROR] MODEL_SELECT must be either "R1" or "R3",默认使用V3')
-    MODEL_ID = MODEL_ID_DEEPSEEK_V3
+if  not AI_MODEL_MAP.get(f'MODEL_ID_{MODEL_SELECT}'):
+    print(f'{MODEL_SELECT} is not in AI_MODEL_MAP,使用默认的DEEPSEEK_V3')
+    MODEL_SELECT = 'DEEPSEEK_V3'
+MODEL_ID = AI_MODEL_MAP.get(f'MODEL_ID_{MODEL_SELECT}')
 
-# --- Asynchronous Worker Function ---
-async def process_batch(
-    batch_keywords: list[str],
-    semaphore: asyncio.Semaphore,
-    client: CURD,
-    file_info: FileInfo,
-    model_id: str,
-    system_role_content: str,
-    batch_index_start: int,
-    batch_size: int
-):
-    """
-    Processes a single batch of keywords asynchronously, respecting the semaphore limit.
-    """
-    async with semaphore: # Acquire semaphore, limits concurrency
-        print(f'---> Starting processing batch: {batch_index_start} to {batch_index_start + len(batch_keywords)-1}')
-        try:
-            # --- Call AI Model (Assume get_ai_rsp is awaitable or handles async internally) ---
-            # If get_ai_rsp is NOT inherently async, wrap it like this:
-            # rsp = await asyncio.to_thread(
-            #     get_ai_rsp,
-            #     system_role_content=system_role_content,
-            #     keywords=batch_keywords,
-            #     stream=True, # Consider if stream=True works well with async/threading
-            #     model_id=model_id
-            # )
-            # Assuming get_ai_rsp IS awaitable:
-            rsp = await async_get_ai_rsp(
-                system_role_content=system_role_content,
-                keywords=batch_keywords,
-                stream=True, # Ensure this is compatible with your async setup
-                model_id=model_id
-            )
-
-            # --- Save Results (Wrap synchronous DB/File IO) ---
-            # save_rsp_v3_result likely performs blocking I/O (DB, file writes)
-            # Use asyncio.to_thread to run it in a separate thread
-            await asyncio.to_thread(
-                save_rsp_v3_result, # The function to run in a thread
-                rsp=rsp,            # Arguments for the function
-                client=client,
-                file_info=file_info
-            )
-            print(f'<--- Finished processing batch: {batch_index_start} to {batch_index_start + len(batch_keywords)-1}. Results saved.')
-            return True # Indicate success for this batch
-
-        except Exception as e:
-            print(f"[ERROR] Failed processing batch {batch_index_start} to {batch_index_start + len(batch_keywords)-1}: {e}")
-            # Optionally: Log the error, save failed keywords, etc.
-            return False # Indicate failure
 
 # --- Main Asynchronous Function ---
 async def async_main(batch_size: int = 100):
@@ -132,7 +85,7 @@ async def async_main(batch_size: int = 100):
     print("Starting saver process...")
     saver_p = multiprocessing.Process(
         target=saver_process_func,
-        args=(results_queue, LOCAL_RSP_FILE_PATH, FAIL_RSP_FILE_PATH),
+        args=(results_queue, LOCAL_RSP_FILE_PATH, FAIL_RSP_FILE_PATH,MODEL_SELECT),
         daemon=True # Set as daemon if you want it to exit automatically if main process crashes
                     # If False (default), you MUST ensure it terminates via the sentinel
     )
@@ -174,7 +127,7 @@ async def async_main(batch_size: int = 100):
             print(f"\rProgress: AI tasks completed: {over_task}/{total_task}", end="")
 
     # --- Signal Saver Process to Terminate ---
-    print("Sending termination signal to saver process...")
+    print("\nSending termination signal to saver process...")
     results_queue.put(TERMINATION_SENTINEL)
 
     # --- Wait for Saver Process to Finish ---
@@ -196,4 +149,6 @@ async def async_main(batch_size: int = 100):
 if __name__ == '__main__':
     # Run the main asynchronous function
     # For Python 3.7+
+    #补录之前的错误 如果存在
+    update_rsp_fail_txt_to_score_with_reason(ai_model=MODEL_SELECT)
     asyncio.run(async_main(batch_size=100)) # Adjust batch_size if needed
