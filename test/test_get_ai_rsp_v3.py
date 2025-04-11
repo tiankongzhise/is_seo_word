@@ -1,13 +1,14 @@
 
 from pathlib import Path
-
+import time
 
 
 from src.is_seo_word.datebase.curd import CURD
-from src.is_seo_word.models import KeywordScoreWithReason
+from src.is_seo_word.models import FileInfo
 from src.is_seo_word.get_ai_rsp_v3 import get_ai_rsp
 from src.is_seo_word.utils import get_keyword
-from src.is_seo_word.utils import format_rsp,formated_rsp_to_dict_list
+from src.is_seo_word.utils import preserve_order_deduplicate,save_rsp_v3_result
+
 
 
 def test_get_ai_rsp_v3(batch_size:int=100):
@@ -20,14 +21,26 @@ def test_get_ai_rsp_v3(batch_size:int=100):
     {"关键词":"编程 开发培训学校","评分":63,"原因":"出现[空格],关键词组合稍显生硬"},
     {"关键词":"计算机 开发 学习","评分":92,"原因":"[空格]连续出现,不符合常见输入习惯"},
     {"关键词":"网络网络运维","评分":88,"原因":"[网络]出现重复,分析后不符合逻辑,不具备明确搜索意图"},
+    {"关键词":"的软件开发培训机构","评分":99,"原因":"[的],出现位置不符合语法,且后继一个明确的培训类关键词,符合seo优化特征"},
+    {"关键词":"软件开发的培训机构","评分":64,"原因":"[的],出现位置不太符合人类用词习惯,且连接两个独立的关键词,比较符合seo特征"},
+    {"关键词":"软件开发培训的机构","评分":35,"原因":"[的]出现位置比较符合用词习惯,且语法正确,意义比较明确"},
+    {"关键词":"培训软件开发中心","评分":90,"原因":"关键词堆砌,不符合人类搜索习惯"},
+    {"关键词":"培训中心软件开发","评分":93,"原因":"关键词堆砌,不符合人类搜索习惯"},
     {"关键词":"Java培训","评分":10,"原因":"语法正确,意义明确"},
     {"关键词":"软件开发培训","评分":8,"原因":"语法正确,意义明确"}],根据用户输入的关键词或者关键词组,按照格式输出判定结果.
     """
     keyword_file_path = Path(__file__).parent.parent.joinpath('data/keyword1.txt')
     local_rsp_file_path = Path(__file__).parent.parent.joinpath('data/rsp_local.txt')
     fail_rsp_file_path = Path(__file__).parent.parent.joinpath('data/rsp_fail.txt')
+    file_info = FileInfo(local_rsp_file_path=local_rsp_file_path,
+                         local_format_fail_file_path=fail_rsp_file_path)
+    beg_time = time.time()
     client = CURD()
     keywords = get_keyword(keyword_file_path)
+    db_item = client.query_keyword_in_keyword_seo_score_with_reason()
+    keywords = preserve_order_deduplicate(keywords)
+    keywords = [item for item in keywords if item not in db_item]
+    
     model_id = 'ep-20250407223552-sb9r2'
     print(f'---------- 开始正式请求 ------------')
     for i in range(0,len(keywords),batch_size):
@@ -36,26 +49,11 @@ def test_get_ai_rsp_v3(batch_size:int=100):
                         keywords=batch_keywords,
                         stream=True,
                         model_id=model_id)
-        with open(local_rsp_file_path,'a',encoding='utf-8') as f:
-            f.write(rsp)
-        json_str = format_rsp(rsp)
-        formated_item = formated_rsp_to_dict_list(json_str)
-        if formated_item is None:
-            with open(fail_rsp_file_path,'a',encoding='utf-8') as f:
-                f.write(rsp)
-            continue
-        db_item = client.query_keyword_in_keyword_seo_score_with_reason()
-        temp_list =[]
-        for item in formated_item:
-            if item['关键词'] in db_item:
-                continue
-            temp_list.append(KeywordScoreWithReason(keyword=item['关键词'],
-                                                    score=item['评分'],
-                                                    reason=item['原因']))
-        client.bulck_insert_keyword_seo_score_with_reason(temp_list)
+        save_rsp_v3_result(rsp=rsp,client=client,file_info=file_info)
         print(f'第{i}到{i+batch_size}关键词插入数据库成功')
 
-
+    total_time = time.time() - beg_time
+    print(f'共耗时{total_time}秒')
 
 if __name__ == '__main__':
     test_get_ai_rsp_v3()
