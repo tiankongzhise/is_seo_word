@@ -67,7 +67,7 @@ async def async_main(batch_size: int = 100):
     db_item = client.query_keyword_in_keyword_seo_score_with_reason()
     print(f"Found {len(db_item)} existing keywords in DB.")
     keywords = preserve_order_deduplicate(keywords)
-    keywords_to_process = [item for item in keywords if item not in db_item]
+    keywords_to_process = [item for item in keywords if item.lower() not in db_item]
     print(f"Keywords to process after deduplication and DB check: {len(keywords_to_process)}")
     success_save = 0
     failed_save = 0

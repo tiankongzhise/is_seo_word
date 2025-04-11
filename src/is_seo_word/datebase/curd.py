@@ -26,4 +26,4 @@ class CURD(object):
     def query_keyword_in_keyword_seo_score_with_reason(self)->List[str]:
         with get_session() as session:
             rsp = session.query(KeywordSeoScoreWithReason.keyword).all()
-            return [item[0] for item in rsp]
+            return [str(item[0]).lower() for item in rsp]
