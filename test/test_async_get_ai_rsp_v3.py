@@ -26,6 +26,7 @@ SYSTEM_ROLE_CONTENT = r"""你是一个SEM关键词筛选系统,对用户输入�
  {"关键词":"编程 开发培训学校","评分":63,"原因":"出现[空格],关键词组合稍显生硬"},
  {"关键词":"计算机 开发 学习","评分":92,"原因":"[空格]连续出现,不符合常见输入习惯"},
  {"关键词":"网络网络运维","评分":88,"原因":"[网络]出现重复,分析后不符合逻辑,不具备明确搜索意图"},
+ {"关键词":"python入门\"\"","评分":88,"原因":"首尾出现不正常字符,语法错误,逻辑混乱"},
  {"关键词":"Java培训","评分":10,"原因":"语法正确,意义明确"},
  {"关键词":"软件开发培训","评分":8,"原因":"语法正确,意义明确"}],根据用户输入的关键词或者关键词组,按照格式输出判定结果.
 """
@@ -69,10 +70,9 @@ async def async_main(batch_size: int = 100):
     keywords = preserve_order_deduplicate(keywords)
     keywords_to_process = [item for item in keywords if item.lower() not in db_item]
     print(f"Keywords to process after deduplication and DB check: {len(keywords_to_process)}")
-    success_save = 0
-    failed_save = 0
+    print(f'keywords_to_process:{keywords_to_process}')
     # --- End Setup ---
-
+  
 
     if not keywords_to_process:
         print("No new keywords to process.")

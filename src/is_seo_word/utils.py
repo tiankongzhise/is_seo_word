@@ -8,8 +8,8 @@ import os
 
 from pathlib import Path
 from decimal import Decimal, getcontext
-from typing import List,Iterator
-
+from typing import List,Iterator,Dict,Any
+from sqlalchemy import UniqueConstraint
 
 from .models import FileInfo,KeywordScoreWithReason
 from .datebase.curd import CURD
@@ -89,20 +89,25 @@ def save_rsp_v3_result(rsp:str,client:CURD,file_info:FileInfo,ai_model:str):
                 f.write(rsp)
             return None
         temp_list =[]
+        temp_set = set()
         try:
             for item in formated_item:
+                if item['关键词'] in temp_set:
+                    print(f'返回的结果中关键词{item["关键词"]}重复')
+                    continue
                 temp_list.append(KeywordScoreWithReason(keyword=item['关键词'],
                                                         score=item['评分'],
                                                         reason=item['原因'],
                                                         ai_model=ai_model)
                                                         )
+                temp_set.add(item['关键词'])
             client.bulck_insert_keyword_seo_score_with_reason(temp_list)
+            return True
         except Exception as e:
             print(f'数据库写入失败,原因为{e},rsp为{rsp}')
             with open(fail_rsp_file_path,'a',encoding='utf-8') as f:
                 f.write(rsp)
             return False
-        return True
     except Exception as e:
         print(e)
         return False
@@ -110,7 +115,7 @@ def save_rsp_v3_result(rsp:str,client:CURD,file_info:FileInfo,ai_model:str):
 TERMINATION_SENTINEL = None # Signal for the saver process to stop
 
 # --- Saver Process Function ---
-def saver_process_func(results_queue: multiprocessing.Queue, local_rsp_path: Path, fail_rsp_path: Path,ai_model:str):
+def saver_process_func(results_queue: multiprocessing.Queue, local_rsp_path: Path, fail_rsp_path: Path,ai_model:str,save_func:callable=save_rsp_v3_result):
     """
     This function runs in a separate process.
     It listens on the queue for results and saves them using the synchronous function.
@@ -136,13 +141,13 @@ def saver_process_func(results_queue: multiprocessing.Queue, local_rsp_path: Pat
             # Process the received result
             try:
                 # Use the original synchronous save function
-                save_successful = save_rsp_v3_result(rsp=result, client=client, file_info=file_info,ai_model=ai_model)
+                save_successful = save_func(rsp=result, client=client, file_info=file_info,ai_model=ai_model)
                 if save_successful:
                     saved_count +=1
                     print(f"[Saver Process {multiprocessing.current_process().pid}] Saved result successfully.")
                 else:
                     error_count +=1
-                    print(f"[Saver Process {multiprocessing.current_process().pid}] Failed to save result (save_rsp_v3_result returned False/error).")
+                    print(f"[Saver Process {multiprocessing.current_process().pid}] Failed to save result ({save_func} returned False/error).")
             except Exception as e:
                 error_count += 1
                 print(f"[Saver Process {multiprocessing.current_process().pid}] EXCEPTION while saving result: {e}")
@@ -211,7 +216,6 @@ def find_toml(
             frame = frame.f_back
         frame_filename = frame.f_code.co_filename
         path = os.path.dirname(os.path.abspath(frame_filename))
-
     for dirname in _walk_to_root(path):
         check_path = os.path.join(dirname, filename)
         if os.path.isfile(check_path):
@@ -285,3 +289,128 @@ def update_rsp_fail_txt_to_score_with_reason(fail_txt_path:str|Path|None = None,
             print(f'rsp_fail.txt文件删除失败,原因为{e}')
     except Exception as e:
         print(f'数据库写入失败,原因为{e}')
+
+def get_current_dir_path():
+    """获取可执行文件所在目录"""
+    if getattr(sys, 'frozen', False):
+        # 打包后的可执行文件目录
+        return Path(sys.executable).parent
+    else:
+        # will work for .py files
+        frame = sys._getframe()
+        current_file = __file__
+
+        while frame.f_code.co_filename == current_file or not os.path.exists(
+            frame.f_code.co_filename
+        ):
+            assert frame.f_back is not None
+            frame = frame.f_back
+        frame_filename = frame.f_code.co_filename
+        path = os.path.dirname(os.path.abspath(frame_filename))
+        return Path(path)
+
+def get_root_dir_path():
+    '''获取项目根目录'''
+    if getattr(sys, 'frozen', False):
+        # 打包后的可执行文件目录
+        return Path(sys.executable).parent
+    else:
+        # 开发环境的脚本目录
+        for dirname in _walk_to_root(Path(__file__)):
+            check_path = os.path.join(dirname, '.env')
+            if os.path.isfile(check_path):
+                return Path(dirname)
+        return Path(__file__).parent.parent.parent
+
+def get_abs_file_path(file_name:str) -> Path:
+    '''获取绝对路径'''
+    if file_name[0] == '.':
+        keywords_file_dir = get_current_dir_path()
+    elif file_name[0] == '$':
+        keywords_file_dir = get_root_dir_path()
+    else:
+        raise ValueError("file_name.或者$开头,.标识获取当前目录下的文件,或者以$开头,标识获取根目录下的文件")
+    file_path = keywords_file_dir / file_name[1:].lstrip('/')
+    return file_path
+
+def get_unique_constraints(model):
+    """获取模型的所有唯一约束（包括复合索引）"""
+    constraints = []
+    # 获取单列唯一约束（通过unique=True定义的）
+    for column in model.__table__.columns:
+        if column.unique and not column.primary_key:
+            constraints.append({'columns': [column.name], 'type': 'single'})
+    
+    # 获取复合唯一约束（通过Index定义的）
+    for index in model.__table__.indexes:
+        if index.unique:
+            constraints.append({
+                'columns': [col.name for col in index.columns],
+                'name': index.name,
+                'type': 'composite'
+            })
+    # 3. UniqueConstraint
+    for constraint in model.__table__.constraints:
+        if isinstance(constraint, UniqueConstraint):
+            constraints.append({
+                'type': 'constraint',
+                'columns': [col.name for col in constraint.columns],
+                'name': constraint.name
+            })
+
+    return constraints
+
+def deduplicate_by_unique_constraints(
+    orm_model: type, 
+    result: List[Dict[str, Any]], 
+    mapping_dict: Dict[str, str],
+    keep: str = 'first'
+) -> List[Dict[str, Any]]:
+    """
+    根据SQLAlchemy模型的唯一索引约束过滤结果中的重复内容
+    
+    参数:
+        orm_model: SQLAlchemy ORM模型类
+        result: 要过滤的结果列表(字典组成的列表)
+        mapping_dict: 结果字典字段到ORM模型字段的映射
+        keep: 保留策略('first'保留第一个出现的重复项，'last'保留最后一个)
+    
+    返回:
+        去重后的结果列表
+    """
+    # 1. 获取模型的所有唯一约束(包括单列、复合索引和UniqueConstraint)
+    unique_constraints = get_unique_constraints(orm_model)
+    
+    if not unique_constraints:
+        return result.copy()
+    
+    # 2. 反转映射字典(ORM字段->结果字段)
+    reverse_mapping = {v: k for k, v in mapping_dict.items()}
+    
+    # 3. 对每个唯一约束进行处理
+    seen_records = set()
+    deduplicated = []
+    
+    for record in (reversed(result) if keep == 'last' else result):
+        # 为记录生成唯一标识键
+        record_keys = []
+        
+        for constraint in unique_constraints:
+            # 获取该约束对应的字段值组合
+            key_parts = []
+            for orm_field in constraint['columns']:
+                if orm_field in reverse_mapping:
+                    result_field = reverse_mapping[orm_field]
+                    key_parts.append(str(record.get(result_field, '')))
+            
+            if key_parts:  # 只处理有对应映射字段的约束
+                record_keys.append(tuple(key_parts))
+        
+        # 合并所有约束的键
+        composite_key = tuple(record_keys)
+        
+        if composite_key not in seen_records:
+            seen_records.add(composite_key)
+            deduplicated.append(record)
+    
+    return list(reversed(deduplicated)) if keep == 'last' else deduplicated

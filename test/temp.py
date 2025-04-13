@@ -1,5 +1,12 @@
-from src.is_seo_word.utils import update_rsp_fail_txt_to_score_with_reason
+from src.is_seo_word.region_agent import run
+from src.is_seo_word.utils import get_unique_constraints
+from src.is_seo_word.datebase.models import KeywordWithRegionTable
 
 
 
-update_rsp_fail_txt_to_score_with_reason(ai_model='DOUBAO_PRO')
+
+
+
+if __name__ == '__main__':
+    run()
+    # print(get_unique_constraints(KeywordWithRegionTable))
