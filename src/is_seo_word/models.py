@@ -31,3 +31,14 @@ class KeywordWithRegion(BaseModel):
     city_name:str = Field(...,description="所属地级区域名称")
     province_name:str = Field(...,description="所属省级区域名称")
     ai_model:str = Field(...,description="关键词评分使用的模型")
+
+class SchoolObject(BaseModel):
+    school_name:str = Field(...,description="学校名称")
+    school_type:str = Field(...,description="学校性质")
+    school_level:str = Field(...,description="办学层次")
+    school_address:list = Field(...,description="办学地点")
+    is_sfx_school:str = Field(...,description="示范性院校")
+    is_gz_school:str = Field(...,description="骨干院校")
+    is_zy_school:str = Field(...,description="卓越院校")
+    is_cy_school:str = Field(...,description="楚怡高水平院校")
+    major:list = Field(...,description="优势专业")

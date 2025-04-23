@@ -65,18 +65,26 @@ class AiAgent(object):
         if kwargs is not None:
             self.kwargs = kwargs
 
-    def get_ai_rsp(self):
+    def get_ai_rsp(self,keywords:str|list|None = None):
         # 创建OpenAI客户端
         client = OpenAI(
             api_key=os.environ.get("ARK_API_KEY"),
             base_url="https://ark.cn-beijing.volces.com/api/v3",
         )
-        if isinstance(self.keywords, str):
-            keywords = [self.keywords]
-        elif isinstance(self.keywords, list):
-            keywords = self.keywords
+        if keywords is None:
+            if isinstance(self.keywords, str):
+                keywords = [self.keywords]
+            elif isinstance(self.keywords, list):
+                keywords = self.keywords
+            else:
+                raise TypeError("keyword must be str or list")
         else:
-            raise TypeError("keyword must be str or list")
+            if isinstance(keywords, str):
+                keywords = [keywords]
+            elif isinstance(keywords, list):
+                pass
+            else:
+                raise TypeError("keyword must be str or list")
 
         # Non-streaming:
         print("----- standard request -----")

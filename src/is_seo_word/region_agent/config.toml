@@ -17,9 +17,9 @@ SYSTEM_ROLE_CONTENT = """你是关键词分类器,对用户输入的一个或者
 
 KEYWORDS_FILE_NAME = '$/data/keyword_region.txt' #.表示相对路径 $表示从根路径开始找
 STREAM = true
-MODEL_ID = 'ep-20250208112736-r5hxt'
+MODEL_ID = 'ep-20250407223552-sb9r2'
 LOCAL_RSP_FILE_PATH = '$/data/region_local.txt'
 FAIL_RSP_FILE_PATH = '$/data/region_fail.txt'
-AI_MODEL = 'DEEPSEEK_R1'
+AI_MODEL = 'DEEPSEEK_V3'
 MAX_CONCURRENT_TASKS = 100
 BATCH_SIZE = 100 

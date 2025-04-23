@@ -1,7 +1,7 @@
 from tkzs_bd_db_tool import init_db,get_session
 from typing import List
-from ..models import KeywordScore,KeywordScoreWithReason,KeywordWithRegion
-from .models import KeywordSeoScore,KeywordBuyScore,KeywordSeoScoreWithReason,KeywordWithRegionTable
+from ..models import KeywordScore,KeywordScoreWithReason,KeywordWithRegion,SchoolObject
+from .models import KeywordSeoScore,KeywordBuyScore,KeywordSeoScoreWithReason,KeywordWithRegionTable,SchoolObjectTable
 
 
 
@@ -36,3 +36,12 @@ class CURD(object):
         with get_session() as session:
             insert_data = [item.model_dump() for item in data]
             session.bulk_insert_mappings(KeywordWithRegionTable, insert_data)
+    
+    def query_keyword_in_school_object(self)->List[str]:
+        with get_session() as session:
+            rsp = session.query(SchoolObjectTable.school_name).all()
+            return [str(item[0]).lower() for item in rsp]
+    def bluck_insert_school_object(self, data:List[SchoolObject]):
+        with get_session() as session:
+            insert_data = [item.model_dump() for item in data]
+            session.bulk_insert_mappings(SchoolObjectTable, insert_data)

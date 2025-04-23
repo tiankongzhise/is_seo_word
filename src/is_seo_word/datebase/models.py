@@ -1,5 +1,5 @@
 from tkzs_bd_db_tool.models import Base
-from sqlalchemy import Column, Integer, String, DateTime, DECIMAL,func,UniqueConstraint
+from sqlalchemy import Column, Integer, String, DateTime, DECIMAL,func,UniqueConstraint,JSON
 
 class KeywordSeoScore(Base):
     __tablename__ = 'keyword_seo_score'
@@ -76,5 +76,29 @@ class KeywordWithRegionTable(Base):
     city_name = Column(String(255), nullable=False, comment='所属地级区域名称')
     province_name = Column(String(255), nullable=False, comment='所属省级区域名称')
     ai_model = Column(String(255), nullable=False, comment='关键词评分使用的模型')
+    create_at = Column(DateTime, nullable=True,default=func.now(), comment='创建时间')
+    update_at = Column(DateTime, nullable=True,onupdate=func.now(), comment='更新时间')
+
+class SchoolObjectTable(Base):
+    __tablename__ = 'school_object'
+    __table_args__ = (
+        UniqueConstraint('school_name', name='unique_school_name'),
+        {
+            'mysql_engine': 'InnoDB',
+            'mysql_charset': 'utf8mb4',
+            'mysql_collate': 'utf8mb4_0900_ai_ci',
+            'schema': 'education'
+        }
+    )
+    key_id = Column(Integer, primary_key=True, autoincrement=True,comment='主键')
+    school_name = Column(String(255), nullable=False, comment='学校名称')
+    school_type = Column(String(255), nullable=False, comment='学校性质')
+    school_level = Column(String(255), nullable=False, comment='办学层次')
+    school_address = Column(JSON, nullable=False, comment='办学地点')
+    is_sfx_school = Column(String(255), nullable=False, comment='示范性院校')
+    is_gz_school = Column(String(255), nullable=False, comment='骨干院校')
+    is_zy_school = Column(String(255), nullable=False, comment='卓越院校')
+    is_cy_school = Column(String(255), nullable=False, comment='楚怡高水平院校')
+    major = Column(JSON, nullable=False, comment='优势专业')
     create_at = Column(DateTime, nullable=True,default=func.now(), comment='创建时间')
     update_at = Column(DateTime, nullable=True,onupdate=func.now(), comment='更新时间')
